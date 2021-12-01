@@ -1,0 +1,273 @@
+---
+title: "Demo Time Series Analysis"
+author: "AMS 316 Weiwei Tao"
+date: "Dec 1, 2021"
+output:
+  pdf_document:
+    fig_caption: yes
+  html_document:
+    df_print: paged
+---
+```{r packages, echo=FALSE,include=FALSE}
+# clear variable environment
+rm(list=ls(all=TRUE))
+
+# set random seeds
+set.seed(572)
+
+
+# install.packages("astsa")
+library("astsa")
+
+# install.packages("TTR")
+library('TTR')
+
+# install.packages("tseries")
+library(tseries)
+```
+## Construct a time series plot
+A time series is a sequence of observations on a variable measured at successive points in time or over successive periods of time. 
+
+The pattern of the data is an important factor in understanding how the time series has behaved in the past.
+
+If such behavior can be expected to continue in the future, we can use the past pattern to guide us in selecting an appropriate forecasting method. 
+
+To identify the underlying pattern in the data, a useful first step is to construct a time series plot. 
+
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=4,fig.height=3, fig.align='center'}
+ sales=c(17,21,19,23,18,16,20,18,22,20,15,22);
+plot.ts(sales, main="Gasoline Sales Time Series Plot");
+abline(h=mean(sales),lty=2,col="red");
+```
+
+## Time series with seasonal pattern
+
+A time series plot for a stationary time series will always exhibit a horizontal pattern. But simply observing a horizontal pattern is not sufficient evidence to conclude that the time series is stationary.
+
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=4,fig.height=3, fig.align='center'}
+umbrella.sales= c(125,153,106,88,118,161,133,102,138,144,113,80, 109,137,125,109,130,165,128,96);
+umbrella.ts=ts(umbrella.sales,frequency=4,start=c(1,1));
+plot.ts(umbrella.ts, main="Umbrella Sales Time Series Plot")
+points(umbrella.ts);
+abline(h=mean(umbrella.ts),lty=2,col="red");
+```
+
+## White Noise and Random Walk
+A simple kind of generated series might be a collection of uncorrelated random variables, $w_t$, with mean 0 and finite variance $\sigma_{w}^2$.
+
+The time series generated from uncorrelated variables is used as a model for noise in engineering applications where it is called white noise. A particularly useful white noise series is Gaussian white noise.
+
+The random walk is given by $$x_t = x_{t-1} + w_t$$ for $t=1,2,\cdots$ with initial condition of $x_0 = 0$.
+
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=4,fig.height=3, fig.align='center'}
+w = rnorm(300,0,1);
+
+x = cumsum(w);
+# cumsum = cumulative sum;
+plot.ts(x, main="random walk"); 
+
+abline(h=0,lty=2);
+# abline adds a horizontal line at zero; # lty = 2, tells R to draw a dashed line;
+```
+
+## MA Model
+MA model is always stationary.
+
+Properties of MA(1) Model $X_t = \mu + w_t + \theta_1 w_{t-1}$.
+
+- $E(X_t) = \mu$
+
+- $Var(X_t) = \sigma_w^2(1+\theta_1^2)$ 
+
+- ACF is: $$\rho(1) = \frac{\theta_1}{1+\theta_1^2}$$ and $\rho(k) = 0$ for $k>0$.
+
+For an MA model, the theoretical PACF does not shut off, but instead tapers toward 0 in some manner. 
+
+A clearer pattern for an MA model is in the ACF. The ACF will have non-zero autocorrelations only at lags involved in the model.
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=10,fig.height=3.5, fig.align='center'}
+b1<- 1.5;
+b2<- -0.56;
+
+# simulating MA(2);
+ma2.sim<-arima.sim(list(ma = c(b1,b2)), n = 100, sd=2);
+
+par(mfrow=c(1,3)) 
+plot.ts(ma2.sim, ylim=c(-8,10),main="MA(2) Example")
+acf(ma2.sim, main="ACF for MA(2) Example")
+pacf(ma2.sim, main="PACF for MA(2) Example")
+```
+
+## AR Model
+AR models have theoretical PACFs with non-zero values at the AR terms in the model and zero values elsewhere. 
+
+The ACF will taper to zero in some fashion.
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=10,fig.height=3.5, fig.align='center'}
+n<-100;
+ar2.sim<-rep(0,n);
+a1<- -0.9;
+
+noise<-rnorm(n,0,2);
+ar2.sim <- filter(noise,filter=(a1),method="recursive", init=0);
+
+arma3.sim<-arima.sim(list(ar=c(-0.9) ),
+n = 100, sd=2);
+
+par(mfrow=c(1,3)) 
+plot.ts(ar2.sim,main="AR(1) a = -0.9, n =100");
+acf(ar2.sim, main="ACF for AR(1) Example");
+pacf(ar2.sim, main="PACF for AR(1) Example");
+```
+
+## ARIMA Model
+ARIMA models, also called Box-Jenkins models, are models that may possibly include autoregressive terms, moving average terms, and differencing operations. Various abbreviations are used:
+
+- When a model only involves autoregressive terms it may be referred to as an AR model. 
+- When a model only involves moving average terms, it may be referred to as an MA model.
+- When no differencing is involved, the abbreviation ARMA may be used.
+
+ARMA models (including both AR and MA terms) have ACFs and PACFs that both tail off to 0. These are the trickiest because the order will not be particularly obvious.
+
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=10,fig.height=3.5, fig.align='center'}
+# simulating ARMA(0,4);
+arma.sim<-arima.sim(list(ma = c(2), ar=c(0.5)), n = 100, sd=2);
+par(mfrow=c(1,3)) 
+plot.ts(arma.sim,main="ARMA(1,1)");
+acf(arma.sim, main="ACF for ARMA(1,1) Example");
+pacf(arma.sim, main="ACF for ARMA(1,1) Example");
+```
+
+## Steps for Time Series Modeling
+1. Guess that one or two terms of each type may be needed and then see what happens when you estimate the model.
+
+2. After you’ve made a guess (or two) at a possible model and once the model has been estimated, do the following:
+- Look at the significance of the coefficients.
+- Look at the ACF of the residuals. For a good model, all autocorrelations for the residual series should be non-significant. If this isn’t the case, you need to try a different model.
+- Look at Box-Pierce (Ljung) tests for possible residual autocorrelation at various lags
+
+### If more than one model works?
+- Possibly choose the model with the fewest parameters.
+- Examine standard errors of forecast values. Pick the model with the generally lowest standard errors for predictions of the future.
+- Compare models with regard to statistics such as the MSE (the estimate of the variance of the wt), AIC, and BIC. Lower values of these statistics are desirable.
+
+## Example 1: Growth rate of US quarterly GNP
+Read in the data and generate time series plot, ACF and PACF plots.
+
+Guess: AR(1) model or AR(2)?
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=10,fig.height=3.5, fig.align='center'}
+
+ #Step 1. Reading data;
+# url of gnp;
+gnp_url = "https://mcs.utm.utoronto.ca/~nosedal/data/q-gnp.txt" # import data in R;
+gnp= read.table(gnp_url, header = FALSE);
+head(gnp);
+
+gnp.ts=ts(gnp,frequency=4,start=c(1947,2));
+
+par(mfrow=c(1,3)) 
+plot(gnp.ts,main="Growth rate of US quarterly GNP", ylab="Growth");
+acf(gnp.ts,main="ACF");
+pacf(gnp.ts,main="PACF");
+```
+
+### Statistics Diganosis
+The Ljung-Box statistic, also called the modified Box-Pierce statistic. This statistic can be used to examine residuals from a time series model in order to see if all underlying population autocorrelations for the errors may be 0.
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=8,fig.height=8, fig.align='center'}
+sarima (gnp.ts, 1, 0, 0)
+```
+
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=8,fig.height=8, fig.align='center'}
+sarima (gnp.ts, 2, 0, 0)
+```
+### Predicition
+For a stationary series and model, the forecasts of future values will eventually converge to the mean and then stay there. 
+
+Note below what happened with the stride length forecasts, when we asked for 30 forecasts past the end of the series. [Command was sarima.for (stridelength, 30, 2, 0, 0)]. The forecast got to mean and then stayed there.
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=6,fig.height=3.5, fig.align='center'}
+sarima.for(gnp.ts, 6, 2, 0, 0)
+
+sarima.for(gnp.ts, 30, 2, 0, 0)
+```
+## Example 2: Ages at Death of the Kings of England (Non-stationary with Trend)
+Performs the Augmented Dickey-Fuller test for the null hypothesis of a unit root of a univarate time series x (equivalently, x is a non-stationary time series).
+
+Recall that non-seasonal time series consist of a trend component and a random component. Decomposing the time series involves tying to separate the time series into these individual components.
+
+One way to do this is using some smoothing method, such as a simple moving average. The SMA() function in the TTR R package can be used to smooth time series data using a moving average.
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=10,fig.height=4, fig.align='center'}
+kings <- scan("http://robjhyndman.com/tsdldata/misc/kings.dat",skip=3)
+kingstimeseries <- ts(kings)
+adf.test(kingstimeseries)
+
+par(mfrow=c(1,3)) 
+kingsSMA3 <- SMA(kingstimeseries, n=3)
+kingsSMA8 <- SMA(kingstimeseries,n=8)
+plot.ts(kingstimeseries)
+plot.ts(kingsSMA3)
+plot.ts(kingsSMA8)
+```
+### ADF test shows that the time series is not stationary.
+In order to make it staionary, we can differencing the time series.
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=10,fig.height=3.5, fig.align='center'}
+kingtimeseriesdiff1 <- diff(kingstimeseries, differences=1)
+adf.test(kingtimeseriesdiff1)
+
+par(mfrow=c(1,3)) 
+plot(kingtimeseriesdiff1)
+acf(kingtimeseriesdiff1,main="ACF")
+pacf(kingtimeseriesdiff1,main="PACF")
+```
+Since the correlogram is zero after lag 1, and the partial correlogram tails off to zero after lag 3, this means that the following ARMA (autoregressive moving average) models are possible for the time series of first differences:
+
+- an ARMA(3,0) model, that is, an autoregressive model of order p=3, since the partial autocorrelogram is zero after lag 3, and the autocorrelogram tails off to zero (although perhaps too abruptly for this model to be appropriate)
+- an ARMA(0,1) model, that is, a moving average model of order q=1, since the autocorrelogram is zero after lag 1 and the partial autocorrelogram tails off to zero
+- an ARMA(p,q) model, that is, a mixed model with p and q greater than 0, since the autocorrelogram and partial correlogram tail off to zero (although the correlogram probably tails off to zero too abruptly for this model to be appropriate)
+
+**Rule of Thumb**
+
+Pick the one with fewest parameter.
+
+Pick ARIMA(0,1,1) to include both differencing and MA(1).
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=8,fig.height=8, fig.align='center'}
+sarima (kingstimeseries, 0, 1, 1)
+```
+
+## Example 3: Australian beer production (Non-stationary with both trend and seasonality)
+Decomposition procedures are used in time series to describe the trend and seasonal factors in a time series.
+
+The following two structures are considered for basic decomposition models:
+
+- Additive:  = Trend + Seasonal + Random
+- Multiplicative:  = Trend * Seasonal * Random
+
+### Steps in Decomposition
+1. The first step is to estimate the trend:
+- moving averages
+- The second approach is to model the trend with a regression equation.
+
+2. The second step is to “de-trend” the series. For an additive decomposition, this is done by subtracting the trend estimates from the series. For a multiplicative decomposition, this is done by dividing the series by the trend values.
+
+3. Next, seasonal factors are estimated using the de-trended series.
+
+4. The final step is to determine the random (irregular) component
+
+A seasonal time series, in addition to the trend and random components, also has a seasonal component. Decomposing a seasonal time series means separating the time series into these three components. In R we can use the decompose() function to estimate the three components of the time series.
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=6,fig.height=6, fig.align='center'}
+beerprod = scan("beerprod.dat")
+beerprod = ts(beerprod, freq = 4)
+decompbeer = decompose(beerprod, type = "additive")
+
+plot(decompbeer)
+
+decompbeer_adj <-na.remove(decompbeer$random)
+```
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=10,fig.height=3.5, fig.align='center'}
+par(mfrow=c(1,3)) 
+plot(decompbeer_adj,main="Growth rate of US quarterly GNP", ylab="Growth")
+acf(decompbeer_adj,main="ACF")
+pacf(decompbeer_adj,main="PACF")
+```
+```{r,echo=FALSE,include=TRUE,message = FALSE, warning = FALSE, out.width='\\textwidth', fig.width=8,fig.height=8, fig.align='center'}
+sarima (decompbeer_adj, 0, 0, 2)
+```
+
+
